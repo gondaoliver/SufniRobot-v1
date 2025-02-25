@@ -5,18 +5,18 @@ from dualsense_controller import DualSenseController
 IN1 = 23
 IN2 = 24
 ENA = 16
-SERVO = 14
+SERVO_Steering = 14
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(IN1, GPIO.OUT)
 GPIO.setup(IN2, GPIO.OUT)
 GPIO.setup(ENA, GPIO.OUT)
-GPIO.setup(SERVO, GPIO.OUT)
+GPIO.setup(SERVO_Steering, GPIO.OUT)
 
 GPIO.output(ENA, GPIO.HIGH)
 
-p = GPIO.PWM(SERVO, 50)  # 50Hz frequency
-p.start(0)  # Alap position
+p = GPIO.PWM(SERVO_Steering, 50)  # 50Hz frequency
+p.start(0)  # Alap position 
 
 device_infos = DualSenseController.enumerate_devices()
 if len(device_infos) < 1:
@@ -25,6 +25,7 @@ if len(device_infos) < 1:
 is_running = True
 controller = DualSenseController()
 
+# Gombok eseményeinek definiálása
 def stop():
     global is_running
     is_running = False
@@ -78,6 +79,8 @@ def on_error(error):
     print(f'Error: {error}')
     stop()
 
+
+# Gombok és azok eseményeinek regisztrálása
 controller.btn_ps.on_down(on_ps_btn_pressed)
 controller.btn_r2.on_down(on_R2_btn_pressed)
 controller.btn_r2.on_up(on_R2_btn_released)
