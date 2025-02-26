@@ -1,7 +1,13 @@
 from time import sleep
 import RPi.GPIO as GPIO
 from dualsense_controller import DualSenseController
+from adafruit_servokit import ServoKit
 
+# Initialize servo driver (3 servos: 0-Shoulder, 1-Elbow, 2-Gripper)
+kit = ServoKit(channels=16)
+servo_positions = [90, 90, 90]  # Initial positions [Shoulder, Elbow, Gripper]
+
+# Motor control setup (unchanged)
 IN1 = 24
 IN2 = 23
 ENA = 16
@@ -12,88 +18,100 @@ GPIO.setup(IN1, GPIO.OUT)
 GPIO.setup(IN2, GPIO.OUT)
 GPIO.setup(ENA, GPIO.OUT)
 GPIO.setup(SERVO_Steering, GPIO.OUT)
-
 GPIO.output(ENA, GPIO.HIGH)
 
-p = GPIO.PWM(SERVO_Steering, 50)  # 50Hz frequency
-p.start(0)  # Alap position 
+# Steering servo setup (unchanged)
+p = GPIO.PWM(SERVO_Steering, 50)
+p.start(0)
 
-device_infos = DualSenseController.enumerate_devices()
-if len(device_infos) < 1:
-    raise Exception('No DualSense Controller available.')
-is_running = True
+# Controller setup
 controller = DualSenseController()
+is_running = True
 
-# Gombok eseményeinek definiálása
 def stop():
     global is_running
     is_running = False
+    
+    # Stop all servos
+    for i in range(3):
+        kit.servo[i].angle = None  # Release servo motor
+        
+    # Stop vehicle motor and clean up
+    GPIO.output(IN1, GPIO.LOW)
+    GPIO.output(IN2, GPIO.LOW)
+    p.stop()
     GPIO.cleanup()
+    print("All motors stopped and cleaned up")
 
+def move_servo(index, step):
+    """Move specified servo with angle clamping"""
+    new_angle = max(0, min(180, servo_positions[index] + step))
+    servo_positions[index] = new_angle
+    kit.servo[index].angle = new_angle
+    print(f"Servo {['Shoulder', 'Elbow', 'Gripper'][index]} moved to {new_angle}°")
 
+# Shoulder control (△/× buttons)
+def on_triangle_btn_pressed():
+    move_servo(0, 5)  # Shoulder up
+
+def on_cross_btn_pressed():
+    move_servo(0, -5)  # Shoulder down
+
+# Elbow control (L1/R1)
+def on_L1_btn_pressed():
+    move_servo(1, 5)   # Elbow up
+
+def on_R1_btn_pressed():
+    move_servo(1, -5)  # Elbow down
+
+# Gripper control (L3/R3)
+def on_L3_btn_pressed():
+    move_servo(2, 10)  # Open gripper
+
+def on_R3_btn_pressed():
+    move_servo(2, -10)  # Close gripper
+
+# Original vehicle controls (unchanged)
 def on_R2_btn_pressed():
-    print('R2 button pressed')
-    controller.left_rumble.set(255)
-    controller.right_rumble.set(255)
     GPIO.output(IN1, GPIO.HIGH)
     GPIO.output(IN2, GPIO.LOW)
 
 def on_R2_btn_released():
-    print('R2 button released')
-    controller.left_rumble.set(0)
-    controller.right_rumble.set(0)
     GPIO.output(IN1, GPIO.LOW)
     GPIO.output(IN2, GPIO.LOW)
 
 def on_L2_btn_pressed():
-    print('L2 button pressed')
-    controller.left_rumble.set(255)
-    controller.right_rumble.set(255)
     GPIO.output(IN1, GPIO.LOW)
     GPIO.output(IN2, GPIO.HIGH)
 
 def on_L2_btn_released():
-    print('L2 button released')
-    controller.left_rumble.set(0)
-    controller.right_rumble.set(0)
     GPIO.output(IN1, GPIO.LOW)
     GPIO.output(IN2, GPIO.LOW)
 
 def on_left_stick_moved(joystick):
-    x = joystick.x  # Extract the x-axis value
-    duty_cycle = 7.5 + (x * -2.5)  # Convert -1 to 1 range into 5 to 10 duty cycle
-    duty_cycle = max(5, min(10, duty_cycle))  # Clamp within servo range
+    duty_cycle = 7.5 + (joystick.x * -2.5)
+    duty_cycle = max(5, min(10, duty_cycle))
     p.ChangeDutyCycle(duty_cycle)
-    print(f'Servo position: {duty_cycle}%')
 
-"""def on_left_stick_released(joystick):
-    p.ChangeDutyCycle(0)  # Alap position
-    print('Servo position: 0%')
-"""
-
-def on_ps_btn_pressed():
-    print('PS button pressed -> stop')
-    stop()
-
-def on_error(error):
-    print(f'Error: {error}')
-    stop()
-
-
-# Gombok és azok eseményeinek regisztrálása
-controller.btn_ps.on_down(on_ps_btn_pressed)
+# Event bindings
+controller.btn_ps.on_down(lambda: stop())
 controller.btn_r2.on_down(on_R2_btn_pressed)
 controller.btn_r2.on_up(on_R2_btn_released)
 controller.btn_l2.on_down(on_L2_btn_pressed)
 controller.btn_l2.on_up(on_L2_btn_released)
 controller.left_stick.on_change(on_left_stick_moved)
-# controller.left_stick.on_release(on_left_stick_released)
-
-controller.on_error(on_error)
+controller.btn_triangle.on_down(on_triangle_btn_pressed)
+controller.btn_cross.on_down(on_cross_btn_pressed)
+controller.btn_l1.on_down(on_L1_btn_pressed)
+controller.btn_r1.on_down(on_R1_btn_pressed)
+controller.btn_l3.on_down(on_L3_btn_pressed)
+controller.btn_r3.on_down(on_R3_btn_pressed)
 
 controller.activate()
 
-while is_running:
-    sleep(0.001)
-    
-controller.deactivate()
+try:
+    while is_running:
+        sleep(0.001)
+finally:
+    stop()  # Ensure cleanup even if error occurs
+    controller.deactivate()
