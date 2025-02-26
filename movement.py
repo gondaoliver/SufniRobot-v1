@@ -62,7 +62,7 @@ def on_L2_btn_released():
 
 def on_left_stick_moved(joystick):
     x = joystick.x  # Extract the x-axis value
-    duty_cycle = 7.5 + (x * 2.5)  # Convert -1 to 1 range into 5 to 10 duty cycle
+    duty_cycle = 0 + (x * 2.5)  # Convert -1 to 1 range into 5 to 10 duty cycle
     duty_cycle = max(5, min(10, duty_cycle))  # Clamp within servo range
     p.ChangeDutyCycle(duty_cycle)
     print(f'Servo position: {duty_cycle}%')
