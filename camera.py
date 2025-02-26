@@ -1,53 +1,38 @@
-from flask import Flask, Response
 import cv2
+from flask import Flask, render_template, Response
 
-# Initialize Flask app
 app = Flask(__name__)
 
-# Open the webcam
+# Initialize the camera
 camera = cv2.VideoCapture(0)
-camera.set(3, 1280)
-camera.set(4, 720)
 
-
-# Function to generate the frames for video streaming
+# Function to generate frames for the video feed
 def generate_frames():
     while True:
-        # Read a frame from the webcam
+        # Read a frame from the camera
         success, frame = camera.read()
-        
         if not success:
             break
         else:
-            # Convert the frame to JPEG format
+            # Encode the frame in JPEG format
             ret, buffer = cv2.imencode('.jpg', frame)
             frame = buffer.tobytes()
-            
-            # Yield the frame to stream to the browser
+
+            # Yield the frame to the client (in MJPEG format)
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
 
-# Route for the camera stream
-@app.route('/video_feed')
-def video_feed():
+# Route for the home page
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+# Route for the video stream
+@app.route('/video')
+def video():
     return Response(generate_frames(), 
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
-# Route for the homepage (with video streaming embedded)
-@app.route('/')
-def index():
-    return """
-    <html>
-        <head>
-            <title>Live Camera Stream</title>
-        </head>
-        <body>
-            <h1>Camera Stream</h1>
-            <img src="/video_feed" width="640" height="480" />
-        </body>
-    </html>
-    """
-
-# Run the Flask application
+# Run the Flask web server
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
