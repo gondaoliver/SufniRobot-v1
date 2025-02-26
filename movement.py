@@ -67,9 +67,10 @@ def on_left_stick_moved(joystick):
     p.ChangeDutyCycle(duty_cycle)
     print(f'Servo position: {duty_cycle}%')
 
-def on_left_stick_released(joystick):
+"""def on_left_stick_released(joystick):
     p.ChangeDutyCycle(0)  # Alap position
     print('Servo position: 0%')
+"""
 
 def on_ps_btn_pressed():
     print('PS button pressed -> stop')
@@ -87,7 +88,7 @@ controller.btn_r2.on_up(on_R2_btn_released)
 controller.btn_l2.on_down(on_L2_btn_pressed)
 controller.btn_l2.on_up(on_L2_btn_released)
 controller.left_stick.on_change(on_left_stick_moved)
-controller.left_stick.on_release(on_left_stick_released)
+# controller.left_stick.on_release(on_left_stick_released)
 
 controller.on_error(on_error)
 
