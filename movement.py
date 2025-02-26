@@ -2,8 +2,8 @@ from time import sleep
 import RPi.GPIO as GPIO
 from dualsense_controller import DualSenseController
 
-IN1 = 23
-IN2 = 24
+IN1 = 24
+IN2 = 23
 ENA = 16
 SERVO_Steering = 14
 
